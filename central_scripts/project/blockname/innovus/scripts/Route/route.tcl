@@ -1,14 +1,14 @@
 set current_stage route
 set work_dir [pwd]
-set Stage "Route"
-source route_config.tcl
+
+source ../config.tcl
 read_db $cts_db
+uncertainty $current_stage
 
 set_db route_design_with_si_driven true
 set_db route_design_with_timing_driven true
 set_db route_design_antenna_diode_insertion true
 set_db route_design_antenna_cell_name $ANTENNA_DIODE_CELL
-set_db timing_enable_simultaneous_setup_hold_mode false
 
 set_db add_fillers_cells $FILLER_CELLS
 set_db add_fillers_with_drc false
@@ -43,11 +43,13 @@ time_design -expanded_views -post_route -report_dir $report_dir
 time_design -expanded_views -post_route -hold -report_dir $report_dir
 check_place > $report_dir/$current_step.check.rpt
 check_design -type route -out_file $report_dir/$current_step.check_design.rpt
-#report_timing -late -max_paths 10000 -nworst 100 -max_slack 0.0 > $report_dir/$current_step.report_timing.setup.rpt
-#report_timing -early -max_paths 10000 -nworst 100 -max_slack 0.0 > $report_dir/$current_step.report_timing.hold.rpt
 
-report_timing -late -max_paths 10000 -nworst 100 -max_slack 0.0 -fields {hpin cell net fanout load  delay arrival }  -split_delay -nets > $report_dir/$current_step.report_timing.setup.rpt
-report_timing -early -max_paths 10000 -nworst 100 -max_slack 0.0 -fields {hpin cell net fanout load  delay arrival }  -split_delay -nets > $report_dir/$current_step.report_timing.hold.rpt
+report_timing -max_paths 1000000 -max_slack 0.0 -output_format gtd -late > setup.rpt
+report_timing -max_paths 1000000 -max_slack 0.0 -output_format gtd -early > hold.rpt
+set fpp [open instt w];puts $fpp "{";foreach i [get_db insts] {if {[get_db $i .base_cell.is_inverter]} {puts $fpp "\"[get_db $i .name]\":\"inverter\","} elseif {[get_db $i .base_cell.is_buffer]} {puts $fpp "\"[get_db $i .name]\":\"buffer\","} elseif {[get_db $i .base_cell.is_combinational]} {puts $fpp "\"[get_db $i .name]\":\"combinational\","} elseif {[get_db $i .base_cell.is_sequential]} {puts $fpp "\"[get_db $i .name]\":\"sequential\","}};foreach i [get_db current_design .nets] {try {set name [get_db $i .name];set length [expr [string map {" " "+"} [get_db $i .wires.length]]];puts $fpp "\"$name\":$length,"} on error {msg} {puts $fpp "\"$name\":0,"}};puts $fpp "}";close $fpp;
+python3.9 ../../customscripts/machinetiming.py setup.rpt  $csv_dir/setuptiming
+python3.9 ../../customscripts/machinetiming.py hold.rpt  $csv_dir/holdtiming
+
 
 check_timing -verbose >> $report_dir/$current_step.check_timing.rpt
 report_congestion -hotSpot -overflow > $report_dir/${current_step}_report_congestion.rpt

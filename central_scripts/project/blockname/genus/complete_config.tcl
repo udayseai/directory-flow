@@ -246,7 +246,12 @@ switch  $current_stage {
 		set max_paths 10000
 		set nworst 100
 		set max_slack 0.0
+		set current_step $design.cts
+		 
 
+		### don't change any variables here :
+		set paths [pwd]
+		set path_components [split $pa
 		### don't change any variables here :
 		set paths [pwd]
 		set path_components [split $paths "/"]
@@ -290,4 +295,4 @@ switch  $current_stage {
 }
 
 # to store changes variables
-source ../../customscripts/config_monitor.tcl
+#source ../../customscripts/config_monitor.tcl
